@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import datetime
+import logging
 
 class Database:
     def __init__(self, db_name):
@@ -24,17 +25,36 @@ class Database:
                 PRIMARY KEY (user_id, chat_id)
             )
         ''')
-        self.cursor.execute('''
-            CREATE TABLE IF NOT EXISTS activity_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                chat_id INTEGER NOT NULL,
-                giver_id INTEGER NOT NULL,
-                receiver_id INTEGER NOT NULL,
-                score_change INTEGER NOT NULL,
-                timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS chats (
+                chat_id INTEGER PRIMARY KEY,
+                chat_name TEXT,
+                chat_type TEXT
             )
-        ''')
+        """)
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS activity_log (
+                chat_id INTEGER,
+                giver_id INTEGER,
+                receiver_id INTEGER,
+                score_change INTEGER,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         self.conn.commit()
+
+    def add_chat(self, chat_id: int, chat_name: str, chat_type: str):
+        try:
+            self.cursor.execute('INSERT INTO chats (chat_id, chat_name, chat_type) VALUES (?, ?, ?)',
+                                (chat_id, chat_name, chat_type))
+            self.conn.commit()
+            logging.info(f"Added chat: {chat_name} (ID: {chat_id})")
+        except sqlite3.IntegrityError:
+            pass
+
+    def get_chats(self):
+        self.cursor.execute('SELECT chat_id, chat_name FROM chats')
+        return self.cursor.fetchall() 
 
     async def get_user_score(self, user_id: int, chat_id: int) -> int:
         self.cursor.execute('SELECT score FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
