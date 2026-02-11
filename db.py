@@ -88,9 +88,9 @@ class Database:
         self.cursor.execute('SELECT user_id FROM admins WHERE chat_id = ?', (chat_id,))
         return [row[0] for row in self.cursor.fetchall()]
 
-    async def get_top_users(self, chat_id: int, limit: int = 10) -> list:
+    async def get_top_users(self, chat_id: int, limit: int = 50) -> list:
         self.cursor.execute(
-            'SELECT user_id, score FROM users WHERE chat_id = ? ORDER BY score DESC LIMIT ?',
+            'SELECT user_id, score FROM users WHERE chat_id = ? AND score > 0 ORDER BY score DESC LIMIT ?',
             (chat_id, limit)
         )
         return self.cursor.fetchall()
