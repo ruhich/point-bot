@@ -17,6 +17,7 @@ load_dotenv()
 from config import BOT_TOKEN, SUPER_ADMIN_ID, DB_NAME
 from db import Database
 from graphs import generate_activity_graph
+from aiogram.types import BotCommand
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -29,6 +30,15 @@ class AdminStates(StatesGroup):
     waiting_for_user_id = State()
     waiting_for_admin_user_id_to_remove = State()
 
+
+async def set_bot_commands():
+    commands = [
+        BotCommand(command="start", description="Запустить бота"),
+        BotCommand(command="top", description="Топ пользователей"),
+        BotCommand(command="mystats", description="Показать мои баллы"),
+        BotCommand(command="admin_panel", description="Админ панель")
+    ]
+    await bot.set_my_commands(commands)
 
 async def is_super_admin(user_id: int) -> bool:
     return user_id == SUPER_ADMIN_ID
@@ -341,13 +351,13 @@ async def handle_karma(message: types.Message):
         logging.info("Conditions not met: Not a group chat or not a reply.")
         return
 
-    is_chat_admin_status = await check_group_admin(message.from_user.id, message.chat.id)
     is_bot_admin_status = await db.is_admin(message.from_user.id, message.chat.id)
-    logging.info(f"Sender {message.from_user.full_name} (ID: {message.from_user.id}) - is_chat_admin: {is_chat_admin_status}, is_bot_admin: {is_bot_admin_status}")
+    is_super_admin_user = await is_super_admin(message.from_user.id)
 
-    if not (is_chat_admin_status or is_bot_admin_status):
-        logging.info("Sender is not an authorized admin.")
+    if not (is_bot_admin_status or is_super_admin_user):
+        logging.info("Sender is not a bot-assigned admin or super admin.")
         return
+
 
     target_user = message.reply_to_message.from_user
     logging.info(f"Target user: {target_user.full_name} (ID: {target_user.id})")
@@ -385,6 +395,7 @@ async def main():
     scheduler.add_job(monthly_karma_reset, 'cron', hour=0, minute=1)
     scheduler.start()
 
+    await set_bot_commands()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
